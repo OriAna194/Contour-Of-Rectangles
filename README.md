@@ -1,6 +1,6 @@
 # 📐 Finding the Contour of a Set of Rectangles
 
-⚠️ **Important Note**: While the implementation follows the resources provided by our teacher, the code is currently **not producing the expected results**. The uploaded image demonstrates the incorrect output generated so far. Any insights or fixes are welcome!
+⚠️ **Important Note**: While the implementation follows the resources provided, the code is currently **not producing the expected results**. The uploaded image demonstrates the incorrect output generated so far. Any insights or fixes are welcome!
 
 ---
 
