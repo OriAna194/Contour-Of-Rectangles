@@ -1,126 +1,100 @@
+import numpy as np
 import matplotlib.pyplot as plt
 
+def draw_rectangles_and_contour_no_cv2():
+    # Define input rectangles (coordinates: (x1, y1, x2, y2))
+    rectangles = [
+        [1, 1, 8, 6],
+        [6, 2, 10, 8],
+        [3, 1, 7, 5],
+        [4, 11, 11, 14],
+        [2, 6, 5, 12],
+        [8, 7, 12, 12]
+    ]
 
-class SegmentTree:
+    width, height = 15, 15
+    scale = 50
 
-    def __init__(self, ymin, ymax):
-        self.ymin = ymin
-        self.ymax = ymax
-        self.tree = {}
-        self.intervals = []
+    # 1. Create a blank "canvas" for drawing rectangles (3-channel image, white background).
+    img_rectangles = np.ones((height * scale, width * scale, 3), dtype=np.uint8) * 255
+    # 2. Create another canvas for drawing the final contour in color.
+    img_contour = img_rectangles.copy()
 
-    def _update(self, node, node_ymin, node_ymax, y1, y2, delta):
-        if y2 <= node_ymin or y1 >= node_ymax:
-            return
-        if y1 <= node_ymin and y2 >= node_ymax:
-            self.tree[node] = self.tree.get(node, 0) + delta
-        else:
-            mid = (node_ymin + node_ymax) // 2
-            self._update(node * 2, node_ymin, mid, y1, y2, delta)
-            self._update(node * 2 + 1, mid, node_ymax, y1, y2, delta)
+    # (A) Draw rectangle edges in red on img_rectangles
+    for (x1, y1, x2, y2) in rectangles:
+        px1, py1 = x1 * scale, y1 * scale
+        px2, py2 = x2 * scale, y2 * scale
 
-        if self.tree.get(node, 0) > 0:
-            self.intervals.append((node_ymin, node_ymax))
+        # Top edge
+        img_rectangles[py1, px1:px2] = [0, 0, 255]
+        # Bottom edge
+        img_rectangles[py2 - 1, px1:px2] = [0, 0, 255]
+        # Left edge
+        img_rectangles[py1:py2, px1] = [0, 0, 255]
+        # Right edge
+        img_rectangles[py1:py2, px2 - 1] = [0, 0, 255]
 
-    def insert(self, y1, y2):
-        self.intervals = []
-        self._update(1, self.ymin, self.ymax, y1, y2, 1)
-        return self._merge_intervals()
+    # (B) Create a binary mask where rectangles fill with 255
+    mask = np.zeros((height * scale, width * scale), dtype=np.uint8)
+    for (x1, y1, x2, y2) in rectangles:
+        px1, py1 = x1 * scale, y1 * scale
+        px2, py2 = x2 * scale, y2 * scale
+        mask[py1:py2, px1:px2] = 255
 
-    def delete(self, y1, y2):
-        self.intervals = []
-        self._update(1, self.ymin, self.ymax, y1, y2, -1)
-        return self._merge_intervals()
+    # (C) Identify boundary pixels
+    boundary_mask = np.zeros_like(mask, dtype=np.uint8)
+    h, w = mask.shape
 
-    def _merge_intervals(self):
-        self.intervals.sort()
-        merged = []
-        for start, end in self.intervals:
-            if not merged or merged[-1][1] < start:
-                merged.append((start, end))
-            else:
-                merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-        return merged
+    for y in range(1, h - 1):
+        for x in range(1, w - 1):
+            if mask[y, x] == 255:
+                # Mark as boundary if any of its 4 neighbors is 0
+                if (mask[y - 1, x] == 0 or
+                    mask[y + 1, x] == 0 or
+                    mask[y, x - 1] == 0 or
+                    mask[y, x + 1] == 0):
+                    boundary_mask[y, x] = 255
 
+    # (D) Extract the boundary pixels into a list of (x, y) coords
+    # Note: np.argwhere gives (row, col) => (y, x).
+    boundary_pixels = np.argwhere(boundary_mask == 255)
+    # Convert to (x, y) tuples:
+    contour_points = [(x, y) for (y, x) in boundary_pixels]
 
-def compute_contour(rectangles):
-    events = []
-    ymin, ymax = float('inf'), float('-inf')
+    # -- Here is the updated print block:
+    print("List of boundary points in (x=..., y=...) format:")
+    for (x, y) in contour_points:
+        print(f"(x={x}, y={y})")
 
+    # Color the boundary in blue on img_contour
+    img_contour[boundary_mask == 255] = [255, 0, 0]  # BGR=(255,0,0)
 
-    for x1, y1, x2, y2 in rectangles:
-        events.append((x1, 'start', y1, y2))
-        events.append((x2, 'end', y1, y2))
-        ymin = min(ymin, y1)
-        ymax = max(ymax, y2)
+    # (E) Plot the results
+    plt.figure(figsize=(12, 6))
 
-    events.sort()
+    # Left: The input rectangles with red edges
+    plt.subplot(1, 2, 1)
+    plt.title("Input Rectangles (with Grid)")
+    plt.imshow(img_rectangles)
+    plt.xticks(np.arange(0, (width + 1) * scale, scale), np.arange(0, width + 1))
+    plt.yticks(np.arange(0, (height + 1) * scale, scale), np.arange(0, height + 1))
+    plt.grid(color='gray', linestyle='--', linewidth=0.5)
+    plt.gca().invert_yaxis()
+    plt.axis('on')
 
+    # Right: The computed contour in blue
+    plt.subplot(1, 2, 2)
+    plt.title("Computed Contour (with Grid)")
+    plt.imshow(img_contour)
+    plt.xticks(np.arange(0, (width + 1) * scale, scale), np.arange(0, width + 1))
+    plt.yticks(np.arange(0, (height + 1) * scale, scale), np.arange(0, height + 1))
+    plt.grid(color='gray', linestyle='--', linewidth=0.5)
+    plt.gca().invert_yaxis()
+    plt.axis('on')
 
-    segment_tree = SegmentTree(ymin, ymax)
-    vertical_edges = []
-
-    prev_x = None
-    for x, event_type, y1, y2 in events:
-        if prev_x is not None and x != prev_x:
-            active_intervals = segment_tree.intervals
-            for y1, y2 in active_intervals:
-                vertical_edges.append(((prev_x, y1), (prev_x, y2)))
-        if event_type == 'start':
-            segment_tree.insert(y1, y2)
-        elif event_type == 'end':
-            segment_tree.delete(y1, y2)
-        prev_x = x
-
-    return vertical_edges
-
-
-def construct_closed_contour(vertical_edges):
-    vertices = []
-    for (x, y1), (_, y2) in vertical_edges:
-        vertices.append((x, y1))
-        vertices.append((x, y2))
-
-    vertices.sort(key=lambda v: (v[1], v[0]))
-
-    horizontal_edges = []
-    for i in range(0, len(vertices), 2):
-        x1, y = vertices[i]
-        x2, _ = vertices[i + 1]
-        horizontal_edges.append(((x1, y), (x2, y)))
-
-    return vertical_edges + horizontal_edges
-
-
-def draw_input_and_contour(rectangles):
-    fig, axes = plt.subplots(1, 2, figsize=(14, 7))
-
-
-    ax1 = axes[0]
-    for x1, y1, x2, y2 in rectangles:
-        ax1.plot([x1, x2, x2, x1, x1], [y1, y1, y2, y2, y1], 'k-')
-    ax1.set_title("a) Input Rectangles")
-    ax1.set_aspect('equal', adjustable='datalim')
-    ax1.grid(color='gray', linestyle='--', linewidth=0.5)
-
-
-    ax2 = axes[1]
-    vertical_edges = compute_contour(rectangles)
-    contour_edges = construct_closed_contour(vertical_edges)
-    for (x1, y1), (x2, y2) in contour_edges:
-        ax2.plot([x1, x2], [y1, y2], 'r-', linewidth=1.5)
-    ax2.set_title("b) Contour of the Union")
-    ax2.set_aspect('equal', adjustable='datalim')
-    ax2.grid(color='gray', linestyle='--', linewidth=0.5)
-
+    plt.tight_layout()
     plt.show()
 
 
-
-rectangles = [
-    (1, 1, 4, 4),
-    (2, 3, 6, 5),
-    (5, 1, 7, 6),
-    (3, 2, 5, 3)
-]
-draw_input_and_contour(rectangles)
+if __name__ == "__main__":
+    draw_rectangles_and_contour_no_cv2()
