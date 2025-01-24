@@ -23,7 +23,7 @@ This project demonstrates how to compute and visualize the boundaries of multipl
 ## How It Works
 1. **Input Rectangles:** A predefined set of rectangles specified by their coordinates `(x1, y1, x2, y2)`.
 2. **Binary Mask Creation:** A blank grid is created and filled where rectangles are present.
-3. **Boundary Detection:** Each pixel in the grid is checked to determine if it lies on the boundary of a rectangle.
+3. **Boundary Detection:** Each diacrete unit in the grid is checked to determine if it lies on the boundary of a rectangle.
 4. **Contour Extraction:** Boundary pixels are collected as `(x, y)` coordinates.
 5. **Visualization:**
    - Red edges represent the input rectangles.
